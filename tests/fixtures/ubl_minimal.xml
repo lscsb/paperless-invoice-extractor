@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">
+
+  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+  <cbc:ID>RE-2024-0099</cbc:ID>
+  <cbc:IssueDate>2024-03-15</cbc:IssueDate>
+  <cbc:DueDate>2024-04-15</cbc:DueDate>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Muster GmbH</cbc:RegistrationName>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Segelflugverein Beispiel e.V.</cbc:RegistrationName>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+
+  <cac:PaymentMeans>
+    <cbc:PaymentID>RE-2024-0099</cbc:PaymentID>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>DE71110220330123456789</cbc:ID>
+      <cac:FinancialInstitutionBranch>
+        <cbc:ID>VZVDDEHHXXX</cbc:ID>
+      </cac:FinancialInstitutionBranch>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+
+  <cac:LegalMonetaryTotal>
+    <cbc:PayableAmount currencyID="EUR">123.45</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+
+</Invoice>

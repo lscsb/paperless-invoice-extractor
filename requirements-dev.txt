@@ -1,0 +1,5 @@
+pytest>=8.0
+pytest-mock>=3.0
+responses>=0.25
+fpdf2>=2.7
+segno>=1.6

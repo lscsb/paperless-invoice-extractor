@@ -1,0 +1,22 @@
+# Konfigurationsdatei für invoice_extract
+# Alle Einträge sind optional – fehlende Werte verwenden die eingebauten Standards.
+# Verwendung: python invoice_extract.py extract --config config.yml
+
+fields:
+  invoice_number:    Rechnungsnummer    # Rechnungsnummer des Absenders (BT-1)
+  invoice_date:      Rechnungsdatum     # Ausstellungsdatum der Rechnung (BT-2)
+  due_date:          "Fällig am"        # Zahlungsfrist (BT-9)
+  amount:            Rechnungssumme     # Zahlbetrag (BT-115)
+  payee:             Zahlungsempfänger   # Rechnungssteller / Zahlungsempfänger (BT-27)
+  iban:              IBAN               # IBAN des Zahlungsempfängers (BT-84)
+  bic:               BIC                # BIC der Bank (BT-86)
+  payment_reference: Zahlungsreferenz   # Verwendungszweck / Referenz (BT-83)
+  data_source:       Rechnungs-Datenquelle  # Wie die Daten erfasst wurden (Auswahl)
+
+tags:
+  inbox:       unbearbeitet             # Tag, der eingehende Dokumente markiert
+  erechnung:   "Auslesen: E-Rechnung"
+  girocode:    "Auslesen: GiroCode"
+  not_found:   "Auslesen: nichts gefunden"
+  conflict:    "Auslesen: Widerspruch"
+  credit_note: Gutschrift
