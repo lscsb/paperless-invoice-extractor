@@ -115,6 +115,13 @@ class PaperlessClient:
                             extra_data: dict | None = None) -> dict:
         payload = {'name': name, 'data_type': data_type}
         if extra_data is not None:
+            # API v7+: select_options must be [{"label": "…"}] objects, not plain strings.
+            # The server generates stable IDs; callers may still pass string arrays.
+            if data_type == 'select' and self.api_version >= 7:
+                opts = extra_data.get('select_options', [])
+                if opts and isinstance(opts[0], str):
+                    extra_data = {**extra_data,
+                                  'select_options': [{'label': o} for o in opts]}
             payload['extra_data'] = extra_data
         return self._post('/api/custom_fields/', json=payload)
 

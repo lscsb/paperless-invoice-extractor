@@ -139,6 +139,56 @@ def test_non_406_raises_plain_error():
 
 
 # ---------------------------------------------------------------------------
+# create_custom_field: select_options format normalisation
+# ---------------------------------------------------------------------------
+
+@responses_lib.activate
+def test_create_select_field_v10_converts_strings_to_dicts():
+    """API v7+: string select_options are converted to {label} dicts before POST."""
+    responses_lib.add(responses_lib.POST, f'{PAPERLESS_URL}/api/custom_fields/',
+                      json={'id': 9, 'name': 'Quelle', 'data_type': 'select',
+                            'extra_data': {'select_options': [
+                                {'id': 'abc', 'label': 'A'}, {'id': 'def', 'label': 'B'}
+                            ]}})
+    make_client(api_version=10).create_custom_field(
+        name='Quelle', data_type='select',
+        extra_data={'select_options': ['A', 'B']},
+    )
+    import json as _json
+    body = _json.loads(responses_lib.calls[0].request.body)
+    assert body['extra_data']['select_options'] == [{'label': 'A'}, {'label': 'B'}]
+
+
+@responses_lib.activate
+def test_create_select_field_v5_keeps_strings():
+    """API v5/v6: string select_options are sent as-is."""
+    responses_lib.add(responses_lib.POST, f'{PAPERLESS_URL}/api/custom_fields/',
+                      json={'id': 9, 'name': 'Quelle', 'data_type': 'select', 'extra_data': {}})
+    make_client(api_version=5).create_custom_field(
+        name='Quelle', data_type='select',
+        extra_data={'select_options': ['A', 'B']},
+    )
+    import json as _json
+    body = _json.loads(responses_lib.calls[0].request.body)
+    assert body['extra_data']['select_options'] == ['A', 'B']
+
+
+@responses_lib.activate
+def test_create_select_field_v10_already_dicts_unchanged():
+    """If options are already dicts, they are forwarded unchanged."""
+    responses_lib.add(responses_lib.POST, f'{PAPERLESS_URL}/api/custom_fields/',
+                      json={'id': 9, 'name': 'Quelle', 'data_type': 'select', 'extra_data': {}})
+    opts = [{'id': 'abc', 'label': 'A'}]
+    make_client(api_version=10).create_custom_field(
+        name='Quelle', data_type='select',
+        extra_data={'select_options': opts},
+    )
+    import json as _json
+    body = _json.loads(responses_lib.calls[0].request.body)
+    assert body['extra_data']['select_options'] == opts
+
+
+# ---------------------------------------------------------------------------
 # PaperlessVersionError is a subclass of PaperlessError
 # ---------------------------------------------------------------------------
 
