@@ -2,6 +2,12 @@
 # Alle Einträge sind optional – fehlende Werte verwenden die eingebauten Standards.
 # Verwendung: python invoice_extract.py extract --config config.yml
 
+# Paperless-ngx API-Verbindungseinstellungen
+# Die Versionsnummer kann alternativ über die Umgebungsvariable
+# PAPERLESS_API_VERSION gesetzt werden (hat Vorrang vor dieser Datei).
+paperless:
+  api_version: 10  # REST API Version des Paperless-ngx-Servers (Standard: 10)
+
 fields:
   invoice_number:    Rechnungsnummer    # Rechnungsnummer des Absenders (BT-1)
   invoice_date:      Rechnungsdatum     # Ausstellungsdatum der Rechnung (BT-2)

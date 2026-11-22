@@ -61,8 +61,17 @@ def _make_doc(doc_id=1, title='Test Rechnung', tags=None, custom_fields=None):
     }
 
 
+# Stable string IDs used in test fixtures for the data-source select field (API v10 format)
+_DS_ID_ERECHNUNG = 'eRechnung0000001'
+_DS_ID_GIROCODE  = 'GiroCode00000001'
+_DS_ID_MANUELL   = 'manuell000000001'
+
+
 def _default_fields():
-    """Field list matching Config defaults."""
+    """Field list matching Config defaults, in API v10 format.
+
+    select_options uses {id: str, label: str} dicts as returned by Paperless-ngx v7+.
+    """
     return [
         {'id': 1,  'name': 'Rechnungsnummer',  'data_type': 'string',   'extra_data': {}},
         {'id': 2,  'name': 'Rechnungsdatum',   'data_type': 'date',     'extra_data': {}},
@@ -73,7 +82,11 @@ def _default_fields():
         {'id': 7,  'name': 'BIC',               'data_type': 'string',   'extra_data': {}},
         {'id': 8,  'name': 'Zahlungsreferenz',  'data_type': 'string',   'extra_data': {}},
         {'id': 9,  'name': 'Rechnungs-Datenquelle', 'data_type': 'select',
-         'extra_data': {'select_options': ['E-Rechnung', 'GiroCode', 'manuell']}},
+         'extra_data': {'select_options': [
+             {'id': _DS_ID_ERECHNUNG, 'label': 'E-Rechnung'},
+             {'id': _DS_ID_GIROCODE,  'label': 'GiroCode'},
+             {'id': _DS_ID_MANUELL,   'label': 'manuell'},
+         ]}},
     ]
 
 
@@ -122,6 +135,10 @@ def test_process_erechnung_doc():
     assert 11 in body['tags']                              # Auslesen: E-Rechnung
     field_ids = [cf['field'] for cf in body['custom_fields']]
     assert 1 in field_ids                                  # Rechnungsnummer
+    # API v10: data_source value must be the string ID, not the label
+    ds_entry = next((cf for cf in body['custom_fields'] if cf['field'] == 9), None)
+    assert ds_entry is not None
+    assert ds_entry['value'] == _DS_ID_ERECHNUNG
 
 
 @responses_lib.activate
@@ -161,11 +178,11 @@ def test_dry_run_no_writes():
 
 @responses_lib.activate
 def test_manuell_protected():
-    """Datenquelle=manuell → no writes."""
+    """Datenquelle=manuell → no writes (API v10: value is string ID, not label)."""
     xml = load_fixture('cii_minimal.xml')
     pdf = _minimal_pdf_with_xml(xml)
 
-    doc = _make_doc(custom_fields=[{'field': 9, 'value': 'manuell'}])
+    doc = _make_doc(custom_fields=[{'field': 9, 'value': _DS_ID_MANUELL}])
 
     _register_standard_mocks(responses_lib, doc, pdf,
                               fields=_default_fields(), tags=_default_tags())

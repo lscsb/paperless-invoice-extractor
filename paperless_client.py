@@ -9,34 +9,60 @@ class PaperlessError(Exception):
         self.status_code = status_code
 
 
+class PaperlessVersionError(PaperlessError):
+    """Raised when the server returns HTTP 406 (API version not supported)."""
+
+    def __init__(self, requested_version: int, server_version: str | None = None):
+        self.requested_version = requested_version
+        self.server_version = server_version
+        msg = (
+            f'API-Version {requested_version} wird vom Server nicht unterstützt '
+            f'(HTTP 406 Not Acceptable).'
+        )
+        if server_version:
+            msg += (
+                f' Der Server meldet laut X-Api-Version: "{server_version}".'
+                f' Bitte PAPERLESS_API_VERSION auf {server_version!r} setzen.'
+            )
+        else:
+            msg += ' Bitte PAPERLESS_API_VERSION auf die vom Server unterstützte Version setzen.'
+        super().__init__(msg, 406)
+
+
 class PaperlessClient:
-    def __init__(self, base_url: str, token: str):
+    def __init__(self, base_url: str, token: str, api_version: int = 10):
         self.base_url = base_url.rstrip('/')
+        self.api_version = api_version
         self.session = requests.Session()
         self.session.headers.update({
             'Authorization': f'Token {token}',
-            'Accept': 'application/json; version=5',
+            'Accept': f'application/json; version={api_version}',
         })
+
+    def _raise_for_status(self, resp, method: str, path: str) -> None:
+        if resp.ok:
+            return
+        if resp.status_code == 406:
+            server_version = resp.headers.get('X-Api-Version')
+            raise PaperlessVersionError(self.api_version, server_version)
+        raise PaperlessError(f'{method} {path} failed: {resp.status_code}', resp.status_code)
 
     def _get(self, path: str, **kwargs) -> dict | list:
         url = f'{self.base_url}{path}'
         resp = self.session.get(url, **kwargs)
-        if not resp.ok:
-            raise PaperlessError(f'GET {path} failed: {resp.status_code}', resp.status_code)
+        self._raise_for_status(resp, 'GET', path)
         return resp.json()
 
     def _post(self, path: str, json: dict) -> dict:
         url = f'{self.base_url}{path}'
         resp = self.session.post(url, json=json)
-        if not resp.ok:
-            raise PaperlessError(f'POST {path} failed: {resp.status_code}', resp.status_code)
+        self._raise_for_status(resp, 'POST', path)
         return resp.json()
 
     def _patch(self, path: str, json: dict) -> dict:
         url = f'{self.base_url}{path}'
         resp = self.session.patch(url, json=json)
-        if not resp.ok:
-            raise PaperlessError(f'PATCH {path} failed: {resp.status_code}', resp.status_code)
+        self._raise_for_status(resp, 'PATCH', path)
         return resp.json()
 
     def get_documents(self, tag_ids: list[int] | None = None,

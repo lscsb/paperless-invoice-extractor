@@ -9,6 +9,9 @@ import os
 
 @dataclass
 class Config:
+    # Paperless REST API version (overridable via PAPERLESS_API_VERSION or config.yml)
+    api_version: int = 10
+
     # Paperless custom field display names
     field_invoice_number:   str = 'Rechnungsnummer'
     field_invoice_date:     str = 'Rechnungsdatum'
@@ -79,27 +82,49 @@ _TAG_KEYS = {
 
 
 def load_config(path: Optional[str] = None) -> Config:
-    """Load config from a YAML file. Falls back to defaults for missing keys."""
+    """Load config from a YAML file. Falls back to defaults for missing keys.
+
+    PAPERLESS_API_VERSION env var always overrides file and default.
+    """
     cfg = Config()
-    if path is None:
-        return cfg
 
-    try:
-        import yaml
-    except ImportError:
-        raise ImportError('PyYAML required for config file: pip install pyyaml')
+    if path is not None:
+        try:
+            import yaml
+        except ImportError:
+            raise ImportError('PyYAML required for config file: pip install pyyaml')
 
-    with open(path, encoding='utf-8') as f:
-        data = yaml.safe_load(f) or {}
+        with open(path, encoding='utf-8') as f:
+            data = yaml.safe_load(f) or {}
 
-    for yaml_key, attr in _FIELD_KEYS.items():
-        value = data.get('fields', {}).get(yaml_key)
-        if value is not None:
-            setattr(cfg, attr, str(value))
+        for yaml_key, attr in _FIELD_KEYS.items():
+            value = data.get('fields', {}).get(yaml_key)
+            if value is not None:
+                setattr(cfg, attr, str(value))
 
-    for yaml_key, attr in _TAG_KEYS.items():
-        value = data.get('tags', {}).get(yaml_key)
-        if value is not None:
-            setattr(cfg, attr, str(value))
+        for yaml_key, attr in _TAG_KEYS.items():
+            value = data.get('tags', {}).get(yaml_key)
+            if value is not None:
+                setattr(cfg, attr, str(value))
+
+        raw_ver = data.get('paperless', {}).get('api_version')
+        if raw_ver is not None:
+            try:
+                cfg.api_version = int(raw_ver)
+            except (ValueError, TypeError):
+                raise ValueError(
+                    f'config.yml: paperless.api_version muss eine ganze Zahl sein, '
+                    f'erhalten: {raw_ver!r}'
+                )
+
+    # Env var takes the highest precedence
+    env_ver = os.environ.get('PAPERLESS_API_VERSION', '').strip()
+    if env_ver:
+        try:
+            cfg.api_version = int(env_ver)
+        except ValueError:
+            raise ValueError(
+                f'PAPERLESS_API_VERSION muss eine ganze Zahl sein, erhalten: {env_ver!r}'
+            )
 
     return cfg

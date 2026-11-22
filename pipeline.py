@@ -17,18 +17,59 @@ from extract_config import Config
 # ID caches (populated at runtime)
 # ---------------------------------------------------------------------------
 
-_field_id_cache: dict[str, int] = {}
-_tag_id_cache:   dict[str, int] = {}
+_field_id_cache:   dict[str, int]  = {}
+_field_cache:      dict[str, dict] = {}   # full field objects for select-option lookup
+_tag_id_cache:     dict[str, int]  = {}
 
 
 def _load_caches(client: PaperlessClient) -> None:
-    global _field_id_cache, _tag_id_cache
-    _field_id_cache = {f['name']: f['id'] for f in client.get_custom_fields()}
+    global _field_id_cache, _field_cache, _tag_id_cache
+    fields = client.get_custom_fields()
+    _field_id_cache = {f['name']: f['id'] for f in fields}
+    _field_cache    = {f['name']: f       for f in fields}
     _tag_id_cache   = {t['name']: t['id'] for t in client.get_tags()}
 
 
 def _field_id(name: str) -> Optional[int]:
     return _field_id_cache.get(name)
+
+
+# ---------------------------------------------------------------------------
+# Select-option helpers (API v7+: options are {id: str, label: str} dicts;
+# API v5/v6: options are plain strings)
+# ---------------------------------------------------------------------------
+
+def _get_select_option_value(field_name: str, label: str) -> str:
+    """Return the API value for a select option label.
+
+    For API v7+ (dict format), returns the string ID.
+    For API v5/v6 (string format) or unknown fields, returns the label string.
+    """
+    field = _field_cache.get(field_name, {})
+    opts = (field.get('extra_data') or {}).get('select_options', [])
+    if opts and isinstance(opts[0], dict):
+        for opt in opts:
+            if opt.get('label') == label:
+                return opt['id']
+    return label
+
+
+def _get_select_option_label(field_name: str, raw_value) -> Optional[str]:
+    """Convert a stored select value back to its label.
+
+    For API v7+ the stored value is a string ID; looks it up in the options.
+    For API v5/v6 the stored value is already the label string.
+    """
+    if raw_value is None:
+        return None
+    field = _field_cache.get(field_name, {})
+    opts = (field.get('extra_data') or {}).get('select_options', [])
+    if opts and isinstance(opts[0], dict):
+        for opt in opts:
+            if opt.get('id') == raw_value:
+                return opt.get('label')
+        return None
+    return str(raw_value)
 
 
 def _tag_id(name: str) -> Optional[int]:
@@ -167,7 +208,8 @@ def process_document(client: PaperlessClient,
     current_doc = client.get_document(doc_id)
 
     # Write-protection: Datenquelle == 'manuell' → skip everything
-    if _get_field_value(current_doc, cfg.field_data_source) == 'manuell':
+    raw_ds = _get_field_value(current_doc, cfg.field_data_source)
+    if _get_select_option_label(cfg.field_data_source, raw_ds) == 'manuell':
         return f'[{doc_id}] {title} | manuell geschützt | — | — | WARNUNG: übersprungen'
 
     # --- Extraction ---
@@ -222,7 +264,7 @@ def process_document(client: PaperlessClient,
             cfg.field_iban:             normalize_iban(raw_iban) if raw_iban else None,
             cfg.field_bic:              invoice.bic,
             cfg.field_payment_reference: invoice.payment_reference,
-            cfg.field_data_source:      'E-Rechnung',
+            cfg.field_data_source:      _get_select_option_value(cfg.field_data_source, 'E-Rechnung'),
         }
 
     else:
@@ -250,7 +292,7 @@ def process_document(client: PaperlessClient,
             cfg.field_iban:              normalize_iban(raw_iban) if raw_iban else None,
             cfg.field_bic:               girocode.bic,
             cfg.field_payment_reference: girocode.reference,
-            cfg.field_data_source:       'GiroCode',
+            cfg.field_data_source:       _get_select_option_value(cfg.field_data_source, 'GiroCode'),
         }
 
     # --- Write fields (only if currently empty) ---
@@ -261,7 +303,8 @@ def process_document(client: PaperlessClient,
         if fid is None:
             warnings.append(f'Feld "{field_name}" nicht in Paperless gefunden')
             continue
-        if _get_field_value(current_doc, field_name):
+        existing_val = _get_field_value(current_doc, field_name)
+        if existing_val is not None and existing_val != '':
             continue
         new_fields.append({'field': fid, 'value': value})
         fields_written.append(field_name)

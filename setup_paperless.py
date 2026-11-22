@@ -4,6 +4,11 @@ from paperless_client import PaperlessClient
 from extract_config import Config
 
 
+def _select_option_label(opt) -> str:
+    """Extract the label from a select option regardless of API format."""
+    return opt['label'] if isinstance(opt, dict) else opt
+
+
 def run_setup(client: PaperlessClient, cfg: Config, dry_run: bool = False) -> bool:
     """Ensure required fields and tags exist. Returns True if no errors."""
     ok = True
@@ -31,7 +36,8 @@ def run_setup(client: PaperlessClient, cfg: Config, dry_run: bool = False) -> bo
                 ok = False
             elif name == cfg.field_data_source and 'extra_data' in field_spec:
                 expected_opts = set(field_spec['extra_data']['select_options'])
-                existing_opts = set((existing.get('extra_data') or {}).get('select_options', []))
+                raw_existing  = (existing.get('extra_data') or {}).get('select_options', [])
+                existing_opts = {_select_option_label(o) for o in raw_existing}
                 missing = expected_opts - existing_opts
                 if missing:
                     print(

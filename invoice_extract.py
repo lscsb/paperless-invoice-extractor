@@ -19,7 +19,13 @@ def check_dependencies() -> None:
         sys.exit(1)
 
 
-def get_client():
+def get_config(args):
+    from extract_config import load_config
+    config_path = getattr(args, 'config', None)
+    return load_config(config_path)
+
+
+def get_client(cfg):
     from paperless_client import PaperlessClient
 
     url   = os.environ.get('PAPERLESS_URL',   '').strip()
@@ -32,20 +38,15 @@ def get_client():
         print('ERROR: PAPERLESS_TOKEN nicht gesetzt', file=sys.stderr)
         sys.exit(1)
 
-    return PaperlessClient(base_url=url, token=token)
-
-
-def get_config(args):
-    from extract_config import load_config
-    config_path = getattr(args, 'config', None)
-    return load_config(config_path)
+    return PaperlessClient(base_url=url, token=token, api_version=cfg.api_version)
 
 
 def cmd_extract(args) -> int:
     from pipeline import run_extract
+    cfg = get_config(args)
     return run_extract(
-        client=get_client(),
-        cfg=get_config(args),
+        client=get_client(cfg),
+        cfg=cfg,
         document_ids=args.document or [],
         dry_run=args.dry_run,
         force=args.force,
@@ -56,8 +57,9 @@ def cmd_setup(args) -> int:
     from paperless_client import PaperlessError
     from setup_paperless import run_setup
 
+    cfg = get_config(args)
     try:
-        ok = run_setup(get_client(), cfg=get_config(args), dry_run=args.dry_run)
+        ok = run_setup(get_client(cfg), cfg=cfg, dry_run=args.dry_run)
         return 0 if ok else 1
     except PaperlessError as e:
         print(f'ERROR: {e}', file=sys.stderr)
